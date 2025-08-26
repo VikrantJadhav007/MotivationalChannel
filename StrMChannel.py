@@ -136,7 +136,6 @@ def login():
         else:
             st.warning("⚠️ Username cannot be empty")
 
-
 def show_sidebar():
     st.sidebar.title("User Info")
     st.sidebar.write(f"👤 **{st.session_state.current_user}**")
@@ -165,7 +164,6 @@ def show_sidebar():
                     st.sidebar.error("❌ Event name already exists.")
             else:
                 st.sidebar.warning("⚠️ Please enter a valid event name")
-
 
 def render_chat_bubble(message: str, is_admin: bool, username: str):
     bubble_color = "#E0EFFF" if is_admin else "#DCF8C6"
@@ -197,7 +195,6 @@ def render_chat_bubble(message: str, is_admin: bool, username: str):
         unsafe_allow_html=True,
     )
 
-
 def user_chat():
     st.header(f"🎤 Event: {st.session_state.current_event}")
 
@@ -213,10 +210,6 @@ def user_chat():
     user_count = get_unique_user_count(event_id)
     st.markdown(f"**Total participants:** {user_count}")
     st.markdown("---")
-
-    # Manual Refresh Chat button
-    if st.button("🔄 Refresh Chat"):
-        st.rerun()
 
     # Chat container with fixed max height for scrolling
     st.markdown(
@@ -257,35 +250,49 @@ def user_chat():
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Question input for normal users
+    # Layout inputs and buttons side by side for users
     if st.session_state.current_user not in ADMIN_USERNAMES:
         st.markdown("---")
         st.subheader("💬 Ask a Motivational Question")
-        with st.form("ask_question_form", clear_on_submit=True):
-            question_text = st.text_area("Your question or request:", max_chars=500, height=100)
-            send = st.form_submit_button("Send Question")
-            if send:
-                if question_text.strip():
-                    add_message(event_id, st.session_state.current_user, question_text.strip())
-                    st.success("✅ Your question has been submitted.")
-                    st.rerun()
-                else:
-                    st.warning("⚠️ Please enter a valid question.")
+        new_question_col, refresh_col = st.columns([4, 1])
 
-    # Admin controls
+        with new_question_col:
+            with st.form("ask_question_form", clear_on_submit=True):
+                question_text = st.text_area("Your question or request:", max_chars=500, height=100)
+                send = st.form_submit_button("Send Question")
+                if send:
+                    if question_text.strip():
+                        add_message(event_id, st.session_state.current_user, question_text.strip())
+                        st.success("✅ Your question has been submitted.")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Please enter a valid question.")
+
+        with refresh_col:
+            if st.button("🔄 Refresh Chat"):
+                st.rerun()
+
+    # For admin, refresh button near Close Event
     if st.session_state.current_user in ADMIN_USERNAMES:
         st.markdown("---")
-        if st.button("🛑 Close This Event"):
-            close_event(event_id)
-            st.success("Event closed successfully.")
-            st.session_state.current_event = None
-            st.rerun()
+        admin_col1, admin_col2 = st.columns([1, 1])
 
-    # Leave event for all users
+        with admin_col1:
+            if st.button("🛑 Close This Event"):
+                close_event(event_id)
+                st.success("Event closed successfully.")
+                st.session_state.current_event = None
+                st.rerun()
+
+        with admin_col2:
+            if st.button("🔄 Refresh Chat"):
+                st.rerun()
+
+    # Leave event button for all users
+    st.markdown("---")
     if st.button("↩️ Leave Event"):
         st.session_state.current_event = None
         st.rerun()
-
 
 def user_join_event():
     st.header("📢 Join a Live Event")
@@ -302,7 +309,6 @@ def user_join_event():
         st.success(f"Joined event: {selected_event}")
         st.rerun()
 
-
 def main():
     st.set_page_config(page_title="Motivation Channel", page_icon="🎯", layout="centered")
     init_db()
@@ -316,42 +322,12 @@ def main():
         login()
         return
 
-    # Sidebar
-    st.sidebar.title("User Info")
-    st.sidebar.write(f"👤 **{st.session_state.current_user}**")
-    role = "Admin" if st.session_state.current_user in ADMIN_USERNAMES else "User"
-    st.sidebar.write(f"🔑 Role: **{role}**")
+    show_sidebar()
 
-    if st.sidebar.button("🚪 Logout", key="logout"):
-        st.session_state.current_user = None
-        st.session_state.current_event = None
-        st.rerun()
-
-    # Admin event creation controls in sidebar
-    if role == "Admin":
-        st.sidebar.markdown("---")
-        st.sidebar.header("🛠 Event Management")
-        event_name = st.sidebar.text_input(
-            "Create New Event", placeholder="Enter new event name"
-        )
-        if st.sidebar.button("➕ Create Event"):
-            if event_name.strip():
-                success = create_event(event_name.strip())
-                if success:
-                    st.sidebar.success(f"✅ Event '{event_name.strip()}' created!")
-                    st.session_state.current_event = event_name.strip()
-                    st.rerun()
-                else:
-                    st.sidebar.error("❌ Event name already exists.")
-            else:
-                st.sidebar.warning("⚠️ Please enter a valid event name")
-
-    # Show join event or chat depending on state
     if not st.session_state.current_event:
         user_join_event()
     else:
         user_chat()
-
 
 if __name__ == "__main__":
     main()
